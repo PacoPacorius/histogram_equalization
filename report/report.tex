@@ -1,0 +1,76 @@
+\documentclass{article} 
+\usepackage{polyglossia} 
+\usepackage{amsmath}
+\usepackage{fontspec} 
+\usepackage{lipsum} 
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx} 
+\usepackage{caption} 
+\usepackage{subcaption}
+\usepackage{hyperref} 
+\usepackage{verbatim}
+\hypersetup{% 
+    colorlinks=true, linkcolor=blue, filecolor=magenta,      
+    urlcolor=cyan, 
+    pdfinfo = {%
+        Title = {ΨΕΕ 1η εργασία}
+        Author = {Χρήστος Μάριος Περδίκης},
+        Producer = XeLaTeX
+    } 
+}
+
+
+\setmainfont{FreeSerif}
+
+
+\title{Ψηφιακή Επεξεργασία Εικόνας \\ Παραλλαγές αλγορίθμων εξισορρόπησης και 
+αντιστοίχισης ιστογράμματος}
+\date{Εαρινό Εξάμηνο 2024-2025}
+\author{Χρήστος-Μάριος Περδίκης 10075 cperdikis@ece.auth.gr}
+ 
+\begin{document}
+\maketitle
+
+Αυτή είναι η αναφορά για την 1η εργασία του μαθήματος Ψηφιακής Επεξεργασίας 
+Εικόνας. Ο σκοπός της εργασίας είναι η υλοποίηση μεθόδων εξισορρόπησης και 
+αντιστοίχησης ιστογράμματος εικόνας σε python. Ακολουθεί η επεξήγηση των 
+παραδοτέων συναρτήσεων.
+
+\section{Συναρτήσεις στο αρχείο \texttt{hist\_utils.py}}
+\subsection{\texttt{calculate\_hist\_of\_img()}}
+Αρχικοποιείται το dictionary $hist$ με μήκος 256, ώστε να καλύψει όλες τις δυνατές 
+τιμές μιας 8-bit εικόνας. Για κάθε pixel της εικόνας που έχει τιμή $f_i$, 
+η αντίστοιχη τιμή του $hist$ αυξάνεται κατά ένα, δηλαδή $hist[f_i] = hist[f_i] + 1$.
+Η συνάρτηση επιστρέφει το $hist$.
+
+\subsection{\texttt{apply\_hist\_modification\_transform()}}
+Αρχικοποιείται η νέα εικόνα $modified\_image$. Το κάθε pixel $(x, y)$ της λαμβάνει
+τιμή $g_i$ που προέκυψε από την αντιστοιχία τιμών $g_i <-> f_i$ μέσω από το
+Dict $modification\_transform$, όπου $f_i$ η τιμή του αντίστοιχου pixel $(x, y)$
+στην εικόνα εισόδου $img_\array$. Η συνάρτηση επιστρέφει την εικόνα $modified\_image$.
+
+\section{Συναρτήσεις στο αρχείο \texttt{hist\_modif.py}}
+\subsection{\texttt{perform\_hist\_modification()}}
+Ανάλογα με την τιμή της μεταβλητής $mode$, `greedy', `non-greedy', 
+`post-disturbance', εκτελείται η αντίστοιχη μέθοδος αντιστοίχησης ιστογράμματος
+μεταξύ του ιστογράμματος της εικόνας εισόδου $img\_array$ και του ιστογράμματος
+αναφοράς $hist\_ref$. Αφού υπολογιστεί το ιστόγραμμα της εικόνας εισόδου 
+με κλίση στη συνάρτηση \verb|calculate_hist_of_img|,
+καλείται μία από τις βοηθητικές συναρτήσεις \verb|greedy_histogram_matching()|, 
+\verb|non_greedy_histogram_matching()| και 
+\verb|post_disturbance_histogram_matching()| ανάλογα με την τιμή της 
+$mode$. Η αναλυτική επεξήγηση των συναρτήσεων αυτών βρίσκεται στις 
+υποενότητες~\ref{helpfunc-greedy},~\ref{helpfunc-nongreedy} και~\ref{helpfunc-post}.
+Για την ώρα, καλούνται με ορίσματα τα δύο ιστογράμματα, ένα της εικόνας εισόδου και ένα
+αναφοράς, και επιστρέφουν την αντιστοίχηση μεταξύ των δύο ιστογραμμάτων σε 
+μορφή Dict με όνομα $mod\_transform$.
+\subsection{\texttt{perform\_hist\_eq()}}
+\subsection{\texttt{perform\_hist\_matching()}}
+\section{Αρχείο επίδειξης \texttt{demo.py}}
+\section{Βοηθητικές συναρτήσεις}
+\subsection{\texttt{greedy\_histogram\_matching()}}\label{helpfunc-greedy}
+\subsection{\texttt{non\_greedy\_histogram\_matching()}}\label{helpfunc-nongreedy}
+\subsection{\texttt{post\_disturbance\_histogram\_matching()}}\label{helpfunc-post}
+\section{Αποτελέσματα συναρτήσεις}
+
+\end{document}

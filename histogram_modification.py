@@ -4,31 +4,17 @@ from typing import Dict
 import cv2  # For loading images in the demo
 
 def calculate_hist_of_img(img_array: np.ndarray, return_normalized: bool = False) -> Dict:
-    """
-    Calculate the histogram of an image from scratch.
+    # init hist dict, assume 8-bit uint image
+    hist = {i: 0 for i in range(256)}  
     
-    Parameters:
-    img_array: Input image array
-    return_normalized: If True, return normalized histogram
-    
-    Returns:
-    Dict mapping intensity levels to their frequencies
-    """
-    # Check if image is grayscale, if not, convert to grayscale
-    if len(img_array.shape) > 2:
-        img_array = np.mean(img_array, axis=2).astype(np.uint8)
-    
-    # Initialize histogram dictionary with zeros
-    hist = {i: 0 for i in range(256)}  # Assuming 8-bit image (0-255)
-    
-    # Count occurrences of each intensity value
+    # count occurrences of each intensity value
     height, width = img_array.shape
     for y in range(height):
         for x in range(width):
             intensity = int(img_array[y, x])
             hist[intensity] += 1
     
-    # Normalize if requested
+    # normalize (optional)
     if return_normalized:
         total_pixels = height * width
         for key in hist:
@@ -36,37 +22,16 @@ def calculate_hist_of_img(img_array: np.ndarray, return_normalized: bool = False
     
     return hist
 
-def apply_hist_modification_transform(img_array: np.ndarray, mod_transform: Dict) -> np.ndarray:
-    """
-    Apply a histogram modification transform to an image.
-    
-    Parameters:
-    img_array: Input image array
-    mod_transform: Dictionary mapping original intensity levels to desired levels
-    
-    Returns:
-    Modified image array
-    """
-    # Create a copy of the input image to avoid modifying the original
+def apply_hist_modification_transform(img_array: np.ndarray, modification_transform: Dict) -> np.ndarray:
+    # init new image
     modified_image = np.zeros_like(img_array)
     
-    # Check if image is grayscale, if not, process each channel
-    if len(img_array.shape) > 2:
-        # For color images, apply transform to each channel
-        for c in range(img_array.shape[2]):
-            channel = img_array[:, :, c]
-            height, width = channel.shape
-            for y in range(height):
-                for x in range(width):
-                    intensity = int(channel[y, x])
-                    modified_image[y, x, c] = mod_transform.get(intensity, intensity)
-    else:
-        # For grayscale images
-        height, width = img_array.shape
-        for y in range(height):
-            for x in range(width):
-                intensity = int(img_array[y, x])
-                modified_image[y, x] = mod_transform.get(intensity, intensity)
+    # apply transform
+    height, width = img_array.shape
+    for y in range(height):
+        for x in range(width):
+            intensity = int(img_array[y, x])
+            modified_image[y, x] = modification_transform.get(intensity)
     
     return modified_image
 
@@ -84,12 +49,122 @@ def _calculate_cdf(hist: Dict) -> Dict:
     
     return cdf
 
+
+def _greedy_histogram_matching_bin_filling(input_hist: Dict, ref_hist: Dict) -> Dict:
+    """
+    Greedy algorithm for histogram matching using bin filling approach.
+    
+    Parameters:
+    input_hist: Input histogram
+    ref_hist: Reference histogram
+    
+    Returns:
+    Transform dictionary mapping input intensities to reference intensities
+    """
+    # Get total pixel count from input histogram
+    total_pixels = sum(input_hist.values())
+    
+    # Step 1: Create sorted list of input intensities
+    input_intensities = []
+    for intensity, count in input_hist.items():
+        input_intensities.extend([intensity] * count)
+    input_intensities.sort()
+    
+    # Step 2: Calculate target bin sizes from reference histogram
+    target_counts = {}
+    for level, count in ref_hist.items():
+        target_counts[level] = count
+    
+    # Step 3: Create the transform mapping by filling reference bins
+    transform = {}
+    pixel_index = 0
+    
+    for ref_intensity in range(256):
+        target_bin_size = target_counts.get(ref_intensity, 0)
+        
+        # Fill this bin with pixels
+        pixels_to_assign = min(target_bin_size, total_pixels - pixel_index)
+        
+        # Assign all pixels in this range to the current reference intensity
+        for i in range(pixel_index, pixel_index + pixels_to_assign):
+            if i < len(input_intensities):
+                input_intensity = input_intensities[i]
+                transform[input_intensity] = ref_intensity
+        
+        pixel_index += pixels_to_assign
+        
+        # If we've assigned all pixels, we're done
+        if pixel_index >= len(input_intensities):
+            break
+    
+    # Make sure all input intensities have a mapping
+    for i in range(256):
+        if i not in transform:
+            # Find closest assigned intensity
+            closest = min(transform.keys(), key=lambda x: abs(x - i))
+            transform[i] = transform[closest]
+    
+    return transform
+
+def _non_greedy_histogram_matching_bin_filling(input_hist: Dict, ref_hist: Dict) -> Dict:
+    """
+    Non-greedy algorithm for histogram matching using bin filling approach.
+    Preserves the monotonicity of the mapping.
+    
+    Parameters:
+    input_hist: Input histogram
+    ref_hist: Reference histogram
+    
+    Returns:
+    Transform dictionary mapping input intensities to reference intensities
+    """
+    # Get the basic mapping from greedy approach
+    transform = _greedy_histogram_matching_bin_filling(input_hist, ref_hist)
+    
+    # Ensure monotonicity (preserve ordering)
+    for i in range(1, 256):
+        if i in transform and i-1 in transform and transform[i] < transform[i-1]:
+            transform[i] = transform[i-1]
+    
+    return transform
+
+def _post_disturbance_histogram_matching_bin_filling(input_hist: Dict, ref_hist: Dict) -> Dict:
+    """
+    Post-disturbance algorithm for histogram matching using bin filling approach.
+    First equalizes the input histogram, then applies bin filling to match the reference.
+    
+    Parameters:
+    input_hist: Input histogram
+    ref_hist: Reference histogram
+    
+    Returns:
+    Transform dictionary mapping input intensities to reference intensities
+    """
+    # Total number of pixels
+    total_pixels = sum(input_hist.values())
+    
+    # Step 1: Create an equalized histogram (uniform distribution)
+    uniform_target = total_pixels / 256
+    uniform_hist = {i: uniform_target for i in range(256)}
+    
+    # Step 2: Create equalization transform using bin filling
+    equalized_transform = _greedy_histogram_matching_bin_filling(input_hist, uniform_hist)
+    
+    # Step 3: Create transform from uniform to reference histogram
+    uniform_to_ref_transform = _greedy_histogram_matching_bin_filling(uniform_hist, ref_hist)
+    
+    # Step 4: Combine the two transforms
+    combined_transform = {}
+    for i in range(256):
+        if i in equalized_transform:
+            equalized_val = equalized_transform[i]
+            combined_transform[i] = uniform_to_ref_transform.get(equalized_val, equalized_val)
+        else:
+            combined_transform[i] = i
+    
+    return combined_transform
+
 def _greedy_histogram_matching(input_hist: Dict, ref_hist: Dict) -> Dict:
-    """
-    Greedy algorithm for histogram matching.
-    Maps each intensity level to the closest level in reference histogram.
-    """
-    # Calculate cumulative distribution functions (CDFs)
     input_cdf = _calculate_cdf(input_hist)
     ref_cdf = _calculate_cdf(ref_hist)
     
