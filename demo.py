@@ -1,12 +1,41 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from histogram_modification import (
-    calculate_hist_of_img,
+from hist_modif import (
     perform_hist_eq,
     perform_hist_matching,
-    display_images_and_histograms
 )
+from hist_utils import  (
+    calculate_hist_of_img,
+    apply_hist_modification_transform
+    )
+
+def display_images_and_histograms(images_dict, figsize=(15, 10)):
+    num_images = len(images_dict)
+    fig, axes = plt.subplots(num_images, 2, figsize=figsize)
+    
+    for i, (title, img) in enumerate(images_dict.items()):
+        # Display image
+        if num_images == 1:
+            ax_img = axes[0]
+            ax_hist = axes[1]
+        else:
+            ax_img = axes[i, 0]
+            ax_hist = axes[i, 1]
+        
+        ax_img.imshow(img, cmap='gray')
+        ax_img.set_title(title)
+        ax_img.axis('off')
+        
+        # Display histogram
+        hist = calculate_hist_of_img(img)
+        ax_hist.bar(hist.keys(), hist.values(), color='blue', alpha=0.7)
+        ax_hist.set_title(f"Histogram of {title}")
+        ax_hist.set_xlabel("Intensity")
+        ax_hist.set_ylabel("Frequency")
+    
+    plt.tight_layout()
+    plt.show()
 
 # load images in grayscale
 img1 = cv2.imread('input_img.jpg', cv2.IMREAD_GRAYSCALE)

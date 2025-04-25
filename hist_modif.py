@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict
 import cv2  # For loading images in the demo
-from hist_utilsy import  (
+from hist_utils import  (
     calculate_hist_of_img,
     apply_hist_modification_transform
     )
@@ -52,7 +52,6 @@ def _non_greedy_histogram_matching_bin_filling(input_hist: Dict, ref_hist: Dict)
     # Get the basic mapping from greedy approach
     transform = _greedy_histogram_matching_bin_filling(input_hist, ref_hist)
     
-    print(transform)
     # Ensure monotonicity (preserve ordering)
     last_value = 0
     for i in range(256):

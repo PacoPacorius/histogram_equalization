@@ -37,21 +37,21 @@
 παραδοτέων συναρτήσεων.
 
 \section{Συναρτήσεις στο αρχείο \texttt{hist\_utils.py}}
-\subsection{\texttt{calculate\_hist\_of\_img()}}
+\subsection{\texttt{calculate\_hist\_of\_img(img\_array: np.ndarray, return\_normalized: bool)}}
 Αρχικοποιείται το dictionary $hist$ με μήκος 256, ώστε να καλύψει όλες τις δυνατές 
 τιμές μιας 8-bit εικόνας. Για κάθε pixel της εικόνας που έχει τιμή $f_i$, 
 η αντίστοιχη τιμή του $hist$ αυξάνεται κατά ένα, δηλαδή $hist[f_i] = hist[f_i] + 1$.
 Η συνάρτηση επιστρέφει το $hist$.
 
-\subsection{\texttt{apply\_hist\_modification\_transform()}}
+\subsection{\texttt{apply\_hist\_modification\_transform(img\_array: np.ndarray, \\ modification\_transform: Dict)}}
 Αρχικοποιείται η νέα εικόνα $modified\_image$. Το κάθε pixel $(x, y)$ της λαμβάνει
 τιμή $g_i$ που προέκυψε από την αντιστοιχία τιμών $g_i \leftrightarrow f_i$ μέσω από το
 Dict $modification\_transform$, όπου $f_i$ η τιμή του αντίστοιχου pixel $(x, y)$
 στην εικόνα εισόδου $img\_array$. Η συνάρτηση επιστρέφει την εικόνα $modified\_image$.
 
 \section{Συναρτήσεις στο αρχείο \texttt{hist\_modif.py}}
-\subsection{\texttt{perform\_hist\_modification()}}
-Ανάλογα με την τιμή της μεταβλητής $mode$, `greedy', `non-greedy' και
+\subsection{\texttt{perform\_hist\_modification(img\_array: np.ndarray, hist\_ref: Dict, mode: str)}}
+Ανάλογα με την τιμή του ορίσματος $mode$, `greedy', `non-greedy' και
 `post-disturbance', εκτελείται η αντίστοιχη μέθοδος αντιστοίχησης ιστογράμματος
 μεταξύ του ιστογράμματος της εικόνας εισόδου $img\_array$ και του ιστο\-γράμματος
 αναφοράς $hist\_ref$. Το πρώτο υπολογίζεται 
@@ -68,7 +68,7 @@ $mode$. Η αναλυτική επεξήγηση των συναρτήσεων �
 και το $mod\_transform$, η έξοδός της είναι και η έξοδος της 
 \verb|perform_hist_modification()|.
 
-\subsection{\texttt{perform\_hist\_eq()}}
+\subsection{\texttt{perform\_hist\_eq(img\_array: np.ndarray, mode: str)}}
 Σε αυτή τη συνάρτηση καλείται η \verb|perform_hist_modification()| με ορίσματα 
 την εικόνα εισόδου $img\_array$ και ένα ομοιόμορφο ιστόγραμμα. Το ομοιόμορφο 
 ιστόγραμμα κατασκευάζεται ως εξής. Αρχικά υπολογίζεται το $img\_size$ πλήθος όλων των pixels 
@@ -78,10 +78,10 @@ $mode$. Η αναλυτική επεξήγηση των συναρτήσεων �
 $uniform\_hist$ είναι το κατάλληλο ομοιογενές flat ιστόγραμμα. Η έξοδος της 
 \verb|perform_hist_modification()| είναι και η έξοδος της \verb|perform_hist_eq()|.
 
-\subsection{\texttt{perform\_hist\_matching()}}
+\subsection{\texttt{perform\_hist\_matching(img\_array: np.ndarray, img\_array\_ref: np.ndarray, mode: str)}}
 Χρειάζεται μόνο να κλιθεί η \verb|perform_hist_modification()| με ορίσματα την 
-εικόνα εισόδου $img\_array$ και το ιστόγραμμα της εικόνας αναφοράς. Αυτό
-υπολογίζεται με κλίση της \verb|calculate_hist_of_img()|.
+εικόνα εισόδου $img\_array$ και το ιστόγραμμα της εικόνας αναφοράς. Το ιστόγραμμα
+αυτό υπολογίζεται με κλίση της \verb|calculate_hist_of_img()|.
 
 \section{Αρχείο επίδειξης \texttt{demo.py}}
 Αφού φορτωθούν οι δύο εικόνες ``input\_img.py'' και ``ref\_img.py'' με τη χρήση 
@@ -90,7 +90,7 @@ $uniform\_hist$ είναι το κατάλληλο ομοιογενές flat ι�
 αυτής της συνάρτησης προβάλλονται οι δύο αρχικές εικόνες. Έπειτα καλείται οι
 \verb|perform_hist_eq()| με όρισμα την ``input\_img.py'' τρεις φορές, μία
 για κάθε mode (`greedy', `non-greedy' και `post-disturbance') και ξανακαλείται η
-συνάρτηση~\ref{helpfunc-display} για να προάλλει την αρχική εικόνα ``input\_img.py''
+συνάρτηση~\ref{helpfunc-display} για να προβάλλει την αρχική εικόνα ``input\_img.py''
 και τις τρεις εικόνες που προκύπτουν από τις τρεις μεθόδους εξισορρόπησης 
 ιστογράμματος. Όμοια διαδικασία γίνεται και για την αντιστοίχηση ιστογράμματος, 
 καλείται τρεις φορές η \verb|perform_hist_matching()| για όλα τα modes και 
@@ -98,50 +98,100 @@ $uniform\_hist$ είναι το κατάλληλο ομοιογενές flat ι�
 των αντιστοιχίσεων ιστογράμ\-ματος.
 
 \section{Βοηθητικές συναρτήσεις}
-\subsection{\texttt{greedy\_histogram\_matching()}}\label{helpfunc-greedy}
-\hrule
-\vspace{1em}
-\begin{verbatim}
-greedy_histogram_matching(input_hist: Dict, ref_hist: Dict) -> Dict:
-\end{verbatim}
-\hrule
-\vspace{1em}
+Οι συναρτήσεις~\ref{helpfunc-greedy}, \ref{helpfunc-nongreedy} και~\ref{helpfunc-post} βρίσκονται στο αρχείο ``hist\_modif.py'' και 
+η~\ref{helpfunc-display} στο αρχείο ``demo.py''
 
+\subsection{\texttt{greedy\_histogram\_matching(input\_hist: Dict, ref\_hist: Dict)}}\label{helpfunc-greedy}
+Στην υλοποίηση της μεθόδου greedy histogram matching δημιουργείται η λίστα 
+$input\_intensities$ η οποία αρχι\-κοποι\-είται με
+κάθε τιμή φωτεινότητας $count$ φορές, όπου $count$ η 
+συχνότητα εμφάνισης της τιμής αυτής στην αρχική εικόνα. Αυτή η 
+πληροφορία υπάρχει στο Dict $input\_hist$. Η προσπέλαση των τιμών 
+φωτεινότητας γίνεται με αύξουσα σειρά.
+Η ίδια διαδικασία επαναλαμβάνεται για το ιστόγραμμα αναφοράς
+και τη λίστα $ref\_intensities$.
 
-\subsection{\texttt{non\_greedy\_histogram\_matching()}}\label{helpfunc-nongreedy}
-\hrule
-\vspace{1em}
-\begin{verbatim}
-non_greedy_histogram_matching(input_hist: Dict, ref_hist: Dict) -> Dict:
-\end{verbatim}
-\hrule
-\vspace{1em}
+Στην περίπτωση αντιστοίχισης ιστογράμματος, οι δύο λίστες 
+μπορεί να μην έχουν το ίδιο μήκος. Αν η λίστα $input\_intensities$ είναι μεγαλύτερη, 
+υπολογίζεται η αναλογία $ratio = \frac{len(input\_intensities)}{len(ref\_intensities)}$,
+Η $ref\_intensities$ επεκτείνεται μέχρι να έχει μήκος 
+$len(input\_intensities) / ratio$. Στις νέες θέσεις της επαναλαμβάνονται
+ήδη υπάρχουσες τιμές της με τέτοιο τρόπο έτσι ώστε π.χ. τα πρώτα δύο pixel
+της εικόνας εισόδου να αντιστοιχί\-ζονται με το πρώτο
+επίπεδο φωτεινότητας της εικόνας αναφοράς, αν $ratio = 2$. 
+Δηλαδή η αντιστοίχηση γίνεται έτσι ώστε,
+αν $i$ αναφέρονται σε $input\_intensities$ και $j$ σε 
+$ref\_intensities$, $ i / ratio = j$.
+αν η λίστα της εικόνας αναφοράς είναι μεγαλύτερη, 
+πάλι υπολογίζεται το $ratio = \frac{len(input\_intensities)}{len(ref\_intensities)}$
+και μειώνεται το μήκος του $ref\_intensities$ έτσι ώστε,
+αν $i$ αναφέρεται σε θέση της λίστας $input\_intensities$ και $j$ σε 
+θέση της $ref\_intensities$ πριν την επέκταση, η αντιστοίχηση να είναι $i * ratio  = j$.
+Η έξοδος της συνάρτησης είναι το Dict $transform$ που ταιριάζει
+την τιμή $input\_intensities\left[i\right]$ με την τιμή $ref\_intensities\left[i\right]$.
 
-\subsection{\texttt{post\_disturbance\_histogram\_matching()}}\label{helpfunc-post}
-\hrule
-\vspace{1em}
-\begin{verbatim}
-post_disturbance_histogram_matching(input_hist: Dict, ref_hist: Dict) -> Dict:
-\end{verbatim}
-\hrule
-\vspace{1em}
+\subsection{\texttt{non\_greedy\_histogram\_matching(input\_hist: Dict, ref\_hist: Dict)}}\label{helpfunc-nongreedy}
+
+Στη non-greedy μέθοδο, πρώτα καλείται η συνάρτηση~\ref{helpfunc-greedy} και μετά γίνεται έλεγχος
+αν οποιαδήποτε τιμή της εξόδου της $transform$ είναι μικρότερη από οποιαδήποτε προηγούμενη τιμή
+της. Αν είναι, τότε η μικρότερη τιμή εξισώνεται με τη μεγαλύτερη. Το προκύπτον ιστόγραμμα 
+δεν είναι τόσο ακριβές όσο με την απλή συνάρτηση~\ref{helpfunc-greedy}, αλλά διατηρούνται
+καλύτερα οι σχέσεις μεταξύ των διαφορών φωτεινότητας στην τελική εικόνα.
+
+\subsection{\texttt{post\_disturbance\_histogram\_matching(input\_hist: Dict, ref\_hist: Dict)}}\label{helpfunc-post}
+
+Στη post-disturbance μέθοδο πρώτα γίνεται εξισορρόπηση ιστογράμματος στην εικόνα 
+εισόδου (εισάγεται ένα disturbance) και μετά το εξισορροπημένο ιστόγραμμα 
+γίνεται αντιστοίχηση με το ιστόγραμμα αναφοράς. Και οι δύο λειτουργίες γίνονται 
+με τις κατάλληλες κλίσεις στην συνάρτηση~\ref{helpfunc-greedy}. Τα δύο transforms 
+που προκύπτουν, $equalized\_transform$ για την εξισορρόπηση ιστογράματος και 
+$uniform\_to\_ref\_transform$ για την αντιστοί\-χιση συνδυάζονται και η
+έξοδος της συνάρτησης είναι το Dict $combined\_transform$.
 
 \subsection{\texttt{display\_images\_and\_histograms()}}\label{helpfunc-display}
+
+Σε αυτή τη συνάρτη γίνεται χρήση του module matplotlib για να 
+προβληθούν τα αποτελέσματα της επεξεργασίας των ιστογραμμάτων. 
+
 \section{Αποτελέσματα}
 Μετά την εξισορρόπηση ιστογράμματος μπορούμε να παρατηρήσουμε ότι οι περιοχές 
 του ιστογράμματος που προηγουμένως υπήρχαν πολλά μαζεμένα pixel απλώθηκαν σε ένα 
-μεγαλύτερο εύρος τιμών. Βέβαια στις περιοχές της εικόνας που επηρεάστηκαν από
-την εξισορρόπηση ιστογράμματος υπάρχον μη ομαλές μεταβάσεις από ένα επίπεδο
-φωτεινότητας σε ένα άλλο. Αυτό φαίνεται άσχημο στο μάτι. Δεν φαίνεται να υπάρχει 
+μεγαλύτερο εύρος τιμών φωτεινότητας. Βέβαια στις περιοχές της εικόνας που επηρεάστηκαν από
+την εξισορρόπηση ιστογράμματος υπάρχουν μη ομαλές μεταβά\-σεις από ένα επίπεδο
+φωτεινότητας σε άλλο. Αυτό φαίνεται άσχημο στο μάτι. Δεν φαίνεται να υπάρχει 
 καμιά διακριτή διαφορά μεταξύ των διαφορετικών μεθόδων `greedy', `non-greedy' και
 `post-disturbance'.
 
-Μετά την αντιστοίχηση ιστογράμματος βλέπουμε πράγματι την αρχική εικόνα μας να 
-έχει φωτεινότητες κοντινότερες σε αυτές της εικόνας αναφοράς. Όπως την εικόνα
-αναφοράς, το αποτέλεσμα φαίνεται να είναι ποι σκοτεινό γενικά. Υπάρχει ένα 
-σημείο πάνω στη γάτα το οποίο είναι πολύ φωτεινό, σε αυτό φαίνεται διαφορά 
-ανάμεσα των τριών μεθόδων. Η `post-disturbance' μέθοδος είναι πιο φωτεινή σε
+Μετά την αντιστοίχηση ιστογράμματος βλέπουμε πράγματι την αρχική εικόνα να 
+έχει τιμές φωτεινότητας κοντινότερες σε αυτές της εικόνας αναφοράς. Όπως στην εικόνα
+αναφοράς, το αποτέλεσμα φαίνεται να είναι πιο σκοτεινό γενικά. Υπάρχει ένα 
+σημείο πάνω στη γάτα το οποίο είναι πολύ φωτεινό βέβαια και σε αυτό φαίνεται διαφορά 
+στις τρεις μεθόδους. Η `post-disturbance' μέθοδος είναι πιο φωτεινή σε
 εκείνο το σημείο. Στα ιστόγραμματα φαίνεται επίσης ότι η `post-disturbance'
 μέθοδος έχει διαφορά από τις άλλες δύο στις χαμηλές φωτεινότητες.
 
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{Figure_1.png}
+    \caption{Αρχική εικόνα, εικόνα αναφοράς και αντίστοιχα ιστογράμματα}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{Figure_2.png}
+    \caption{Αποτελέσματα εξισορρόπησης ιστογράμματος στην αρχική εικόνα}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{Figure_3.png}
+    \caption{Αποτελέσματα αντιστοίχησης ιστογράμματος αρχικής εικόνας με ιστόγραμμα
+        εικόνας αναφοράς}
+\end{figure}
+
+\newpage
+
+\vspace{2em}
+\centering
+\emph{***ΤΕΛΟΣ ΑΝΑΦΟΡΑΣ***}
 \end{document}
