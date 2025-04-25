@@ -61,48 +61,37 @@ def _greedy_histogram_matching_bin_filling(input_hist: Dict, ref_hist: Dict) -> 
     Returns:
     Transform dictionary mapping input intensities to reference intensities
     """
-    # Get total pixel count from input histogram
-    total_pixels = sum(input_hist.values())
-    
-    # Step 1: Create sorted list of input intensities
-    input_intensities = []
-    for intensity, count in input_hist.items():
-        input_intensities.extend([intensity] * count)
-    input_intensities.sort()
-    
-    # Step 2: Calculate target bin sizes from reference histogram
-    target_counts = {}
-    for level, count in ref_hist.items():
-        target_counts[level] = count
-    
-    # Step 3: Create the transform mapping by filling reference bins
+    # Create a mapping for each intensity level
     transform = {}
-    pixel_index = 0
     
-    for ref_intensity in range(256):
-        target_bin_size = target_counts.get(ref_intensity, 0)
-        
-        # Fill this bin with pixels
-        pixels_to_assign = min(target_bin_size, total_pixels - pixel_index)
-        
-        # Assign all pixels in this range to the current reference intensity
-        for i in range(pixel_index, pixel_index + pixels_to_assign):
-            if i < len(input_intensities):
-                input_intensity = input_intensities[i]
-                transform[input_intensity] = ref_intensity
-        
-        pixel_index += pixels_to_assign
-        
-        # If we've assigned all pixels, we're done
-        if pixel_index >= len(input_intensities):
-            break
+    # Step 1: Sort input intensity levels by value
+    sorted_input_intensities = sorted(range(256), key=lambda x: x)
     
-    # Make sure all input intensities have a mapping
+    # Step 2: Get counts for each intensity level
+    input_counts = [input_hist.get(i, 0) for i in range(256)]
+    ref_counts = [ref_hist.get(i, 0) for i in range(256)]
+    
+    # Step 3: Create cumulative histograms
+    input_cumul = np.cumsum(input_counts)
+    ref_cumul = np.cumsum(ref_counts)
+    
+    # Normalize the cumulative histograms
+    input_total = input_cumul[-1]
+    ref_total = ref_cumul[-1]
+    
+    if input_total == 0 or ref_total == 0:
+        # Handle edge case of empty histograms
+        return {i: i for i in range(256)}
+    
+    input_cumul_norm = input_cumul / input_total
+    ref_cumul_norm = ref_cumul / ref_total
+    
+    # Step 4: Map each input intensity to reference intensity
+    # based on closest cumulative histogram value
     for i in range(256):
-        if i not in transform:
-            # Find closest assigned intensity
-            closest = min(transform.keys(), key=lambda x: abs(x - i))
-            transform[i] = transform[closest]
+        target_value = input_cumul_norm[i]
+        closest_idx = np.argmin(np.abs(ref_cumul_norm - target_value))
+        transform[i] = closest_idx
     
     return transform
 
@@ -122,9 +111,12 @@ def _non_greedy_histogram_matching_bin_filling(input_hist: Dict, ref_hist: Dict)
     transform = _greedy_histogram_matching_bin_filling(input_hist, ref_hist)
     
     # Ensure monotonicity (preserve ordering)
-    for i in range(1, 256):
-        if i in transform and i-1 in transform and transform[i] < transform[i-1]:
-            transform[i] = transform[i-1]
+    last_value = 0
+    for i in range(256):
+        if transform[i] < last_value:
+            transform[i] = last_value
+        else:
+            last_value = transform[i]
     
     return transform
 
@@ -140,15 +132,23 @@ def _post_disturbance_histogram_matching_bin_filling(input_hist: Dict, ref_hist:
     Returns:
     Transform dictionary mapping input intensities to reference intensities
     """
-    # Total number of pixels
-    total_pixels = sum(input_hist.values())
-    
     # Step 1: Create an equalized histogram (uniform distribution)
+    total_pixels = sum(input_hist.values())
     uniform_target = total_pixels / 256
-    uniform_hist = {i: uniform_target for i in range(256)}
+    uniform_hist = {i: int(uniform_target) for i in range(256)}
     
-    # Step 2: Create equalization transform using bin filling
-    equalized_transform = _greedy_histogram_matching_bin_filling(input_hist, uniform_hist)
+    # Make sure we account for rounding errors
+    remaining = total_pixels - sum(uniform_hist.values())
+    if remaining > 0:
+        uniform_hist[128] += int(remaining)  # Add remainder to middle value
+    
+    # Step 2: Create equalization transform using cumulative distribution method
+    input_cumul = np.cumsum([input_hist.get(i, 0) for i in range(256)])
+    input_cumul_norm = input_cumul / input_cumul[-1] if input_cumul[-1] > 0 else np.zeros(256)
+    
+    equalized_transform = {}
+    for i in range(256):
+        equalized_transform[i] = int(np.round(input_cumul_norm[i] * 255))
     
     # Step 3: Create transform from uniform to reference histogram
     uniform_to_ref_transform = _greedy_histogram_matching_bin_filling(uniform_hist, ref_hist)
@@ -156,167 +156,46 @@ def _post_disturbance_histogram_matching_bin_filling(input_hist: Dict, ref_hist:
     # Step 4: Combine the two transforms
     combined_transform = {}
     for i in range(256):
-        if i in equalized_transform:
-            equalized_val = equalized_transform[i]
-            combined_transform[i] = uniform_to_ref_transform.get(equalized_val, equalized_val)
-        else:
-            combined_transform[i] = i
-    
-    return combined_transform
-
-def _greedy_histogram_matching(input_hist: Dict, ref_hist: Dict) -> Dict:
-    input_cdf = _calculate_cdf(input_hist)
-    ref_cdf = _calculate_cdf(ref_hist)
-    
-    # Create the transform mapping
-    transform = {}
-    for i in range(256):
-        # Find the value in reference CDF that is closest to input CDF at level i
-        input_cdf_val = input_cdf[i]
-        min_diff = float('inf')
-        best_match = i
-        
-        for j in range(256):
-            diff = abs(ref_cdf[j] - input_cdf_val)
-            if diff < min_diff:
-                min_diff = diff
-                best_match = j
-        
-        transform[i] = best_match
-    
-    return transform
-
-def _non_greedy_histogram_matching(input_hist: Dict, ref_hist: Dict) -> Dict:
-    """
-    Non-greedy algorithm for histogram matching.
-    Preserves the relative ordering of intensity values.
-    """
-    # Calculate cumulative distribution functions
-    input_cdf = _calculate_cdf(input_hist)
-    ref_cdf = _calculate_cdf(ref_hist)
-    
-    # Create lookup table for mapping
-    transform = {}
-    for i in range(256):
-        # Find j such that ref_cdf[j] is closest to input_cdf[i]
-        min_diff = float('inf')
-        j_closest = i
-        
-        for j in range(256):
-            if abs(input_cdf[i] - ref_cdf[j]) < min_diff:
-                min_diff = abs(input_cdf[i] - ref_cdf[j])
-                j_closest = j
-        
-        transform[i] = j_closest
-    
-    # Ensure monotonicity (preserve ordering)
-    for i in range(1, 256):
-        if transform[i] < transform[i-1]:
-            transform[i] = transform[i-1]
-    
-    return transform
-
-def _post_disturbance_histogram_matching(input_hist: Dict, ref_hist: Dict) -> Dict:
-    """
-    Post-disturbance algorithm for histogram matching.
-    First equalizes the input histogram, then applies a transform to match the reference.
-    """
-    # First, equalize the input histogram (create a uniform distribution)
-    input_cdf = _calculate_cdf(input_hist)
-    equalized_transform = {i: int(round(input_cdf[i] * 255)) for i in range(256)}
-    
-    # Create a uniform histogram (ideally what we'd get after equalization)
-    uniform_hist = {i: 1 for i in range(256)}
-    
-    # Now create a transform from uniform to reference
-    uniform_to_ref_transform = _greedy_histogram_matching(uniform_hist, ref_hist)
-    
-    # Combine the two transforms
-    combined_transform = {}
-    for i in range(256):
-        # First apply equalization, then map to reference
         equalized_val = equalized_transform[i]
-        combined_transform[i] = uniform_to_ref_transform[equalized_val]
+        combined_transform[i] = uniform_to_ref_transform.get(equalized_val, equalized_val)
     
     return combined_transform
+
 
 def perform_hist_modification(img_array: np.ndarray, hist_ref: Dict, mode: str) -> np.ndarray:
-    """
-    Modify an image's histogram to match a reference histogram.
-    
-    Parameters:
-    img_array: Input image array
-    hist_ref: Reference histogram to match
-    mode: Modification mode ("greedy", "non-greedy", or "post-disturbance")
-    
-    Returns:
-    Modified image array
-    """
     # Calculate the histogram of the input image
     input_hist = calculate_hist_of_img(img_array)
     
     # Create the transformation mapping based on the mode
     if mode == "greedy":
-        mod_transform = _greedy_histogram_matching(input_hist, hist_ref)
+        mod_transform = _greedy_histogram_matching_bin_filling(input_hist, hist_ref)
     elif mode == "non-greedy":
-        mod_transform = _non_greedy_histogram_matching(input_hist, hist_ref)
+        mod_transform = _non_greedy_histogram_matching_bin_filling(input_hist, hist_ref)
     elif mode == "post-disturbance":
-        mod_transform = _post_disturbance_histogram_matching(input_hist, hist_ref)
-    else:
-        raise ValueError("Mode must be one of 'greedy', 'non-greedy', or 'post-disturbance'")
+        mod_transform = _post_disturbance_histogram_matching_bin_filling(input_hist, hist_ref)
     
     # Apply the transformation
     return apply_hist_modification_transform(img_array, mod_transform)
 
 def perform_hist_eq(img_array: np.ndarray, mode: str) -> np.ndarray:
-    """
-    Perform histogram equalization on an image.
-    
-    Parameters:
-    img_array: Input image array
-    mode: Equalization mode ("greedy", "non-greedy", or "post-disturbance")
-    
-    Returns:
-    Equalized image array
-    """
-    # For histogram equalization, we want a uniform distribution
-    # Create a uniform histogram as the reference
+    # we only need to call perform_hist_modification the right way
+    # we need a uniform distribution
+    # create a uniform histogram as the reference
     img_size = img_array.shape[0] * img_array.shape[1]
-    if len(img_array.shape) > 2:
-        img_size *= img_array.shape[2]
     
     uniform_target = img_size / 256
     uniform_hist = {i: uniform_target for i in range(256)}
     
-    # Use perform_hist_modification to convert to uniform histogram
+    # call function
     return perform_hist_modification(img_array, uniform_hist, mode)
 
 def perform_hist_matching(img_array: np.ndarray, img_array_ref: np.ndarray, mode: str) -> np.ndarray:
-    """
-    Match the histogram of an image to a reference image.
-    
-    Parameters:
-    img_array: Input image array
-    img_array_ref: Reference image array
-    mode: Matching mode ("greedy", "non-greedy", or "post-disturbance")
-    
-    Returns:
-    Processed image with histogram matched to reference
-    """
-    # Calculate the histogram of the reference image
     ref_hist = calculate_hist_of_img(img_array_ref)
     
-    # Use perform_hist_modification to match the histogram
+    # call function with ref image histogram
     return perform_hist_modification(img_array, ref_hist, mode)
 
 def display_images_and_histograms(images_dict, figsize=(15, 10)):
-    """
-    Display multiple images and their histograms.
-    
-    Parameters:
-    images_dict: Dictionary of {title: image_array}
-    figsize: Figure size as (width, height)
-    """
     num_images = len(images_dict)
     fig, axes = plt.subplots(num_images, 2, figsize=figsize)
     
@@ -329,9 +208,6 @@ def display_images_and_histograms(images_dict, figsize=(15, 10)):
             ax_img = axes[i, 0]
             ax_hist = axes[i, 1]
         
-        if len(img.shape) > 2:
-            ax_img.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        else:
             ax_img.imshow(img, cmap='gray')
         ax_img.set_title(title)
         ax_img.axis('off')

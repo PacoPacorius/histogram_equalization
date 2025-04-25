@@ -45,32 +45,88 @@
 
 \subsection{\texttt{apply\_hist\_modification\_transform()}}
 Αρχικοποιείται η νέα εικόνα $modified\_image$. Το κάθε pixel $(x, y)$ της λαμβάνει
-τιμή $g_i$ που προέκυψε από την αντιστοιχία τιμών $g_i <-> f_i$ μέσω από το
+τιμή $g_i$ που προέκυψε από την αντιστοιχία τιμών $g_i \leftrightarrow f_i$ μέσω από το
 Dict $modification\_transform$, όπου $f_i$ η τιμή του αντίστοιχου pixel $(x, y)$
-στην εικόνα εισόδου $img_\array$. Η συνάρτηση επιστρέφει την εικόνα $modified\_image$.
+στην εικόνα εισόδου $img\_array$. Η συνάρτηση επιστρέφει την εικόνα $modified\_image$.
 
 \section{Συναρτήσεις στο αρχείο \texttt{hist\_modif.py}}
 \subsection{\texttt{perform\_hist\_modification()}}
-Ανάλογα με την τιμή της μεταβλητής $mode$, `greedy', `non-greedy', 
+Ανάλογα με την τιμή της μεταβλητής $mode$, `greedy', `non-greedy' και
 `post-disturbance', εκτελείται η αντίστοιχη μέθοδος αντιστοίχησης ιστογράμματος
-μεταξύ του ιστογράμματος της εικόνας εισόδου $img\_array$ και του ιστογράμματος
-αναφοράς $hist\_ref$. Αφού υπολογιστεί το ιστόγραμμα της εικόνας εισόδου 
-με κλίση στη συνάρτηση \verb|calculate_hist_of_img|,
+μεταξύ του ιστογράμματος της εικόνας εισόδου $img\_array$ και του ιστο\-γράμματος
+αναφοράς $hist\_ref$. Το πρώτο υπολογίζεται 
+από τη συνάρτηση \verb|calculate_hist_of_img()| και μετά
 καλείται μία από τις βοηθητικές συναρτήσεις \verb|greedy_histogram_matching()|, 
-\verb|non_greedy_histogram_matching()| και 
+\verb|non_greedy_histogram_|\-\verb|matching()| και 
 \verb|post_disturbance_histogram_matching()| ανάλογα με την τιμή της 
 $mode$. Η αναλυτική επεξήγηση των συναρτήσεων αυτών βρίσκεται στις 
 υποενότητες~\ref{helpfunc-greedy},~\ref{helpfunc-nongreedy} και~\ref{helpfunc-post}.
 Για την ώρα, καλούνται με ορίσματα τα δύο ιστογράμματα, ένα της εικόνας εισόδου και ένα
 αναφοράς, και επιστρέφουν την αντιστοίχηση μεταξύ των δύο ιστογραμμάτων σε 
-μορφή Dict με όνομα $mod\_transform$.
+μορφή Dict με όνομα $mod\_transform$. Τέλος, 
+καλείται η συνάρτηση \verb|apply|\-\verb|_hist_modification()| με ορίσματα την $img\_array$
+και το $mod\_transform$, η έξοδός της είναι και η έξοδος της 
+\verb|perform_hist_modification()|.
+
 \subsection{\texttt{perform\_hist\_eq()}}
+Σε αυτή τη συνάρτηση καλείται η \verb|perform_hist_modification()| με ορίσματα 
+την εικόνα εισόδου $img\_array$ και ένα ομοιόμορφο ιστόγραμμα. Το ομοιόμορφο 
+ιστόγραμμα κατασκευάζεται ως εξής. Αρχικά υπολογίζεται το $img\_size$ πλήθος όλων των pixels 
+της $img\_array$. Έπειτα αρχικοποιείται ένα Dict $uniform\_hist$ με 256
+θέσεις, τα κλειδιά του είναι ακέραιες τιμές στο διάστημα $\left[0, 255\right]$ και
+οι τιμές του έχουν όλες την ίδια τιμή $\frac{img\_size}{256}$. Έτσι το 
+$uniform\_hist$ είναι το κατάλληλο ομοιογενές flat ιστόγραμμα. Η έξοδος της 
+\verb|perform_hist_modification()| είναι και η έξοδος της \verb|perform_hist_eq()|.
+
 \subsection{\texttt{perform\_hist\_matching()}}
+Χρειάζεται μόνο να κλιθεί η \verb|perform_hist_modification()| με ορίσματα την 
+εικόνα εισόδου $img\_array$ και το ιστόγραμμα της εικόνας αναφοράς. Αυτό
+υπολογίζεται με κλίση της \verb|calculate_hist_of_img()|.
+
 \section{Αρχείο επίδειξης \texttt{demo.py}}
+Αφού φορτωθούν οι δύο εικόνες ``input\_img.py'' και ``ref\_img.py'' με τη χρήση 
+της opencv καλείται η βοηθητική συνάρτηση \verb|display_images_and_histograms()|.
+Η επεξήγησή της βρίσκεται στην υποενότητα~\ref{helpfunc-display}. Με τη χρήση 
+αυτής της συνάρτησης προβάλλονται οι δύο αρχικές εικόνες. Έπειτα καλείται οι
+\verb|perform_hist_eq()| με όρισμα την ``input\_img.py'' τρεις φορές, μία
+για κάθε mode (`greedy', `non-greedy' και `post-disturbance') και ξανακαλείται η
+συνάρτηση~\ref{helpfunc-display} για να προάλλει την αρχική εικόνα ``input\_img.py''
+και τις τρεις εικόνες που προκύπτουν από τις τρεις μεθόδους εξισορρόπησης 
+ιστογράμματος. Όμοια διαδικασία γίνεται και για την αντιστοίχηση ιστογράμματος, 
+καλείται τρεις φορές η \verb|perform_hist_matching()| για όλα τα modes και 
+προβά\-λλονται η αρχική εικόνα, η εικόνα αναφοράς και οι τρεις εικόνες-αποτελέσματα 
+των αντιστοιχίσεων ιστογράμ\-ματος.
+
 \section{Βοηθητικές συναρτήσεις}
 \subsection{\texttt{greedy\_histogram\_matching()}}\label{helpfunc-greedy}
+\hrule
+\vspace{1em}
+\begin{verbatim}
+greedy_histogram_matching(input_hist: Dict, ref_hist: Dict) -> Dict:
+\end{verbatim}
+\hrule
+\vspace{1em}
+
+
 \subsection{\texttt{non\_greedy\_histogram\_matching()}}\label{helpfunc-nongreedy}
+\hrule
+\vspace{1em}
+\begin{verbatim}
+non_greedy_histogram_matching(input_hist: Dict, ref_hist: Dict) -> Dict:
+\end{verbatim}
+\hrule
+\vspace{1em}
+
 \subsection{\texttt{post\_disturbance\_histogram\_matching()}}\label{helpfunc-post}
+\hrule
+\vspace{1em}
+\begin{verbatim}
+post_disturbance_histogram_matching(input_hist: Dict, ref_hist: Dict) -> Dict:
+\end{verbatim}
+\hrule
+\vspace{1em}
+
+\subsection{\texttt{display\_images\_and\_histograms()}}\label{helpfunc-display}
 \section{Αποτελέσματα συναρτήσεις}
 
 \end{document}
